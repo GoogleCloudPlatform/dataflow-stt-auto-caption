@@ -38,7 +38,7 @@ public interface STTAutoCaptionPipelineOptions extends PipelineOptions {
   void setStabilityThreshold(Double value);
 
   @Description("Maximum Word Limit")
-  @Default.Integer(42)
+  @Default.Integer(22)
   Integer getWordCount();
 
   void setWordCount(Integer value);

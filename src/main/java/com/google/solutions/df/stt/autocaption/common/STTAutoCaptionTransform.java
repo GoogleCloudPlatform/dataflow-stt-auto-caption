@@ -29,26 +29,23 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.commons.lang3.ObjectUtils;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,12 +87,18 @@ public abstract class STTAutoCaptionTransform
 
     private Integer maxWordCount;
 
-    @StateId("elementsBag")
-    private final StateSpec<BagState<Row>> elementsBag =
-        StateSpecs.bag(RowCoder.of(Util.outputSchema));
+    @StateId("startOffset")
+    private final StateSpec<ValueState<Long>> startOffset = StateSpecs.value();
 
-    @TimerId("eventTimer")
-    private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+    @StateId("lastEmitWordCount")
+    private final StateSpec<ValueState<Integer>> lastEmitWordCount = StateSpecs.value();
+
+    @StateId("outputRow")
+    private final StateSpec<ValueState<Row>> outputRow =
+        StateSpecs.value(RowCoder.of(Util.outputSchema));
+
+    @TimerId("expiry")
+    private final TimerSpec expirySpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
     public STTResultsHandler(Integer maxWordCount) {
       this.maxWordCount = maxWordCount;
@@ -104,47 +107,49 @@ public abstract class STTAutoCaptionTransform
     @ProcessElement
     public void process(
         @Element KV<String, Row> element,
-        @StateId("elementsBag") BagState<Row> elementsBag,
-        @TimerId("eventTimer") Timer eventTimer,
-        BoundedWindow w) {
-      elementsBag.add(element.getValue());
-      // eventTimer.set(w.maxTimestamp());
-      eventTimer.offset(Duration.standardSeconds(5)).setRelative();
+        @StateId("startOffset") ValueState<Long> startOffset,
+        @StateId("lastEmitWordCount") ValueState<Integer> lastEmitWordCount,
+        @StateId("outputRow") ValueState<Row> outputRow,
+        @TimerId("expiry") Timer expiry,
+        OutputReceiver<Row> output) {
+
+      expiry.offset(Duration.standardSeconds(5)).setRelative();
+      Row apiResult = element.getValue();
+      long startTime = ObjectUtils.firstNonNull(startOffset.read(), 0L);
+      int lastWordCount = ObjectUtils.firstNonNull(lastEmitWordCount.read(), 0);
+      // determine emit or not
+      String displayText =
+          Util.transcriptConstruct(apiResult.getString("transcript"), lastWordCount);
+      int currentWordCount = Util.splitWord(displayText).size();
+      boolean emitResult = currentWordCount >= maxWordCount;
+      Row displayRow =
+          Row.fromRow(apiResult)
+              .withFieldValue("transcript", displayText)
+              .withFieldValue("start_time_offset", startTime)
+              .build();
+      if (emitResult) {
+
+        LOG.info("*******Display Row Count Emit {}********", displayRow.toString());
+        startOffset.write(apiResult.getInt64("end_time_offset"));
+        lastEmitWordCount.write(currentWordCount + lastWordCount);
+        output.output(displayRow);
+
+      } else {
+        outputRow.write(displayRow);
+      }
     }
 
-    @OnTimer("eventTimer")
-    public void onTimer(
-        @StateId("elementsBag") BagState<Row> elementsBag, OutputReceiver<Row> output) {
+    @OnTimer("expiry")
+    public void onExpiry(
+        OnTimerContext context,
+        @StateId("startOffset") ValueState<Long> startOffset,
+        @StateId("lastEmitWordCount") ValueState<Integer> lastEmitWordCount,
+        @StateId("outputRow") ValueState<Row> outputRow,
+        OutputReceiver<Row> output) {
 
-      List<Row> sortedList =
-          StreamSupport.stream(elementsBag.read().spliterator(), false)
-              .sorted(
-                  (a, b) ->
-                      Long.compare(a.getInt64("end_time_offset"), b.getInt64("end_time_offset")))
-              .collect(Collectors.toList());
-
-      IntStream.range(0, sortedList.size())
-          .forEachOrdered(
-              index -> {
-                Row rowWithTimestamp = Row.fromRow(sortedList.get(index)).build();
-                if (index > 0) {
-                  rowWithTimestamp =
-                      Row.fromRow(sortedList.get(index))
-                          .withFieldValue(
-                              "start_time_offset",
-                              sortedList.get(index - 1).getInt64("end_time_offset"))
-                          .build();
-                }
-
-                boolean emitRecord =
-                    (rowWithTimestamp.getInt64("end_time_offset")
-                            > rowWithTimestamp.getInt64("start_time_offset")
-                        && rowWithTimestamp.getString("transcript").length() > 42);
-                if (emitRecord) {
-                  LOG.info("Row With TimeStamp {}", rowWithTimestamp.toString());
-                  output.output(rowWithTimestamp);
-                }
-              });
+      Row remainingTranscript = outputRow.read();
+      LOG.info("*******Display Row Time Emit {}********", remainingTranscript.toString());
+      output.output(remainingTranscript);
     }
   }
 
@@ -215,6 +220,7 @@ public abstract class STTAutoCaptionTransform
 
       for (StreamingRecognizeResponse response : responses) {
         if (!response.hasError()) {
+
           response
               .getResultsList()
               .forEach(
@@ -223,7 +229,12 @@ public abstract class STTAutoCaptionTransform
                         .getAlternativesList()
                         .forEach(
                             alternative -> {
-                              if (result.getStability() >= stability) {
+                              boolean emitRow =
+                                  (result.getStability() >= stability)
+                                      && alternative.getTranscript().length() > 0;
+
+                              if (emitRow) {
+
                                 Row outputRow =
                                     Row.withSchema(Util.outputSchema)
                                         .addValues(
@@ -237,7 +248,8 @@ public abstract class STTAutoCaptionTransform
                                             result.getIsFinal(),
                                             alternative.getWordsCount())
                                         .build();
-                                LOG.debug("Output Row {}", outputRow);
+                                LOG.debug("****Output Row {}****", outputRow);
+
                                 c.output(KV.of(fileMetadata[0], outputRow));
                               }
                             });
