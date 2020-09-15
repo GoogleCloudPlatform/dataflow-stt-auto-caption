@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
@@ -58,7 +57,7 @@ public abstract class OutputProcessorTransform extends PTransform<PCollection<Ro
   @Override
   public PDone expand(PCollection<Row> input) {
 
-   return input
+    return input
         .apply("GroupByKeyField", Group.byFieldNames("file_name"))
         .apply("VTTConvert", MapElements.via(new MergeFilterResponse()))
         .setCoder(RowCoder.of(Util.webVttMetadataSchema))
@@ -90,7 +89,6 @@ public abstract class OutputProcessorTransform extends PTransform<PCollection<Ro
                   }
                 }))
         .apply("PublishToPubSub", PubsubIO.writeMessages().to(topicId()));
-
   }
 
   public static class MergeFilterResponse extends SimpleFunction<Row, Row> {

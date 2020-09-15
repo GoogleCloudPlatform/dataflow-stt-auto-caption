@@ -129,9 +129,7 @@ public abstract class STTAutoCaptionTransform
               .withFieldValue("start_time_offset", startTime)
               .build();
       if (emitResult) {
-
         LOG.debug("*******Display Row Count Emit {}********", displayRow.toString());
-
         startOffset.write(apiResult.getInt64("end_time_offset"));
         lastEmitWordCount.write(currentWordCount + lastWordCount);
         output.output(displayRow);
@@ -234,9 +232,7 @@ public abstract class STTAutoCaptionTransform
                               boolean emitRow =
                                   (result.getStability() >= stability)
                                       && alternative.getTranscript().length() > 0;
-
                               if (emitRow) {
-
                                 Row outputRow =
                                     Row.withSchema(Util.outputSchema)
                                         .addValues(

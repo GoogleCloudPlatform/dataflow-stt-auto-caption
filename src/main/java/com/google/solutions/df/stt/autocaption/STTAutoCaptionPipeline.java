@@ -19,7 +19,6 @@ import com.google.solutions.df.stt.autocaption.common.OutputProcessorTransform;
 import com.google.solutions.df.stt.autocaption.common.ReadAudioFileTransform;
 import com.google.solutions.df.stt.autocaption.common.STTAutoCaptionTransform;
 import com.google.solutions.df.stt.autocaption.common.Util;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -55,7 +54,8 @@ public class STTAutoCaptionPipeline {
             STTAutoCaptionTransform.newBuilder()
                 .setMaxWordCount(options.getWordCount())
                 .setStabilityThreshold(options.getStabilityThreshold())
-                .build()).setCoder(RowCoder.of(Util.outputSchema))
+                .build())
+        .setCoder(RowCoder.of(Util.outputSchema))
         .apply(
             "FixedWindow",
             Window.<Row>into(FixedWindows.of(WINDOW_INTERVAL))
@@ -63,11 +63,10 @@ public class STTAutoCaptionPipeline {
                     Repeatedly.forever(
                         AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.ZERO)))
                 .discardingFiredPanes()
-                .withAllowedLateness(Duration.ZERO))        
+                .withAllowedLateness(Duration.ZERO))
         .apply(
             "OutputData",
-            OutputProcessorTransform.newBuilder()
-            .setTopicId(options.getOutputTopic()).build());
+            OutputProcessorTransform.newBuilder().setTopicId(options.getOutputTopic()).build());
     p.run();
   }
 }

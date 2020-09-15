@@ -115,7 +115,7 @@ public abstract class ReadAudioFileTransform
         }
       }
     }
-    // [END loadSnippet_1]
+
     @GetInitialRestriction
     public OffsetRange getInitialRestriction(@Element KV<String, ReadableFile> file)
         throws IOException {
