@@ -17,17 +17,24 @@ package com.google.solutions.df.stt.autocaption.common;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Util {
   private static final Logger LOG = LoggerFactory.getLogger(STTAutoCaptionTransform.class);
-
+  private static final DateTimeFormatter TIMESTAMP_FORMATTER =
+	      DateTimeFormat.forPattern("mm:ss.SSS");
   static final Schema outputSchema =
       Stream.of(
               Schema.Field.of("file_name", FieldType.STRING).withNullable(true),
@@ -55,8 +62,14 @@ public class Util {
             word -> {
               builder.append(word).append(" ");
             });
-
-    LOG.debug("Builder {}", builder.toString());
     return builder.toString();
+  }
+  
+  public static String formatSecondField(long second) {
+	  LocalTime timeOfDay = LocalTime.ofSecondOfDay(second);
+	  String time = timeOfDay.toString();
+	  return time;
+	  
+
   }
 }

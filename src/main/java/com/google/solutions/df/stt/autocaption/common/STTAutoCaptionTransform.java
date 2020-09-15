@@ -130,6 +130,7 @@ public abstract class STTAutoCaptionTransform
       if (emitResult) {
 
         LOG.info("*******Display Row Count Emit {}********", displayRow.toString());
+
         startOffset.write(apiResult.getInt64("end_time_offset"));
         lastEmitWordCount.write(currentWordCount + lastWordCount);
         output.output(displayRow);
