@@ -15,12 +15,25 @@
  */
 package com.google.solutions.df.stt.autocaption;
 
+import com.google.solutions.df.stt.autocaption.common.OutputProcessorTransform;
 import com.google.solutions.df.stt.autocaption.common.ReadAudioFileTransform;
 import com.google.solutions.df.stt.autocaption.common.STTAutoCaptionTransform;
+import com.google.solutions.df.stt.autocaption.common.Util;
+
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.Row;
+import org.joda.time.Duration;
 
 public class STTAutoCaptionPipeline {
+  /** Default window interval to create side inputs for header records. */
+  private static final Duration WINDOW_INTERVAL = Duration.standardSeconds(10);
+
   public static void main(String[] args) {
 
     STTAutoCaptionPipelineOptions options =
@@ -42,7 +55,19 @@ public class STTAutoCaptionPipeline {
             STTAutoCaptionTransform.newBuilder()
                 .setMaxWordCount(options.getWordCount())
                 .setStabilityThreshold(options.getStabilityThreshold())
-                .build());
+                .build()).setCoder(RowCoder.of(Util.outputSchema))
+        .apply(
+            "FixedWindow",
+            Window.<Row>into(FixedWindows.of(WINDOW_INTERVAL))
+                .triggering(
+                    Repeatedly.forever(
+                        AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.ZERO)))
+                .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO))        
+        .apply(
+            "OutputData",
+            OutputProcessorTransform.newBuilder()
+            .setTopicId(options.getOutputTopic()).build());
     p.run();
   }
 }

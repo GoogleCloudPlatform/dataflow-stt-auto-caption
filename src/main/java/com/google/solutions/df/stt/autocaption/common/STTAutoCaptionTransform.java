@@ -56,6 +56,7 @@ public abstract class STTAutoCaptionTransform
     extends PTransform<PCollection<KV<String, ByteString>>, PCollection<Row>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(STTAutoCaptionTransform.class);
+  private static final Integer WINDOW_INTERVAL = 2;
 
   public abstract Double stabilityThreshold();
 
@@ -113,7 +114,7 @@ public abstract class STTAutoCaptionTransform
         @TimerId("expiry") Timer expiry,
         OutputReceiver<Row> output) {
 
-      expiry.offset(Duration.standardSeconds(5)).setRelative();
+      expiry.offset(Duration.standardSeconds(WINDOW_INTERVAL)).setRelative();
       Row apiResult = element.getValue();
       long startTime = ObjectUtils.firstNonNull(startOffset.read(), 0L);
       int lastWordCount = ObjectUtils.firstNonNull(lastEmitWordCount.read(), 0);
@@ -129,7 +130,7 @@ public abstract class STTAutoCaptionTransform
               .build();
       if (emitResult) {
 
-        LOG.info("*******Display Row Count Emit {}********", displayRow.toString());
+        LOG.debug("*******Display Row Count Emit {}********", displayRow.toString());
 
         startOffset.write(apiResult.getInt64("end_time_offset"));
         lastEmitWordCount.write(currentWordCount + lastWordCount);
@@ -149,7 +150,7 @@ public abstract class STTAutoCaptionTransform
         OutputReceiver<Row> output) {
 
       Row remainingTranscript = outputRow.read();
-      LOG.info("*******Display Row Time Emit {}********", remainingTranscript.toString());
+      LOG.debug("*******Display Row Time Emit {}********", remainingTranscript.toString());
       output.output(remainingTranscript);
     }
   }
@@ -198,7 +199,7 @@ public abstract class STTAutoCaptionTransform
     public void processElement(ProcessContext c) throws InterruptedException, ExecutionException {
 
       String[] fileMetadata = c.element().getKey().split("\\~");
-      LOG.info("File name {}, split {}", fileMetadata[0], fileMetadata[1]);
+      LOG.debug("File name {}, split {}", fileMetadata[0], fileMetadata[1]);
       ResponseApiStreamingObserver<StreamingRecognizeResponse> responseObserver =
           new ResponseApiStreamingObserver<>();
 

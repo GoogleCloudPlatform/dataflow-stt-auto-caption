@@ -20,22 +20,16 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.joda.time.DateTimeZone;
-import org.joda.time.Instant;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Util {
   private static final Logger LOG = LoggerFactory.getLogger(STTAutoCaptionTransform.class);
-  private static final DateTimeFormatter TIMESTAMP_FORMATTER =
-	      DateTimeFormat.forPattern("mm:ss.SSS");
-  static final Schema outputSchema =
+
+  public static final Schema outputSchema =
       Stream.of(
               Schema.Field.of("file_name", FieldType.STRING).withNullable(true),
               Schema.Field.of("start_time_offset", FieldType.INT64).withNullable(true),
@@ -45,6 +39,18 @@ public class Util {
               Schema.Field.of("confidence", FieldType.DOUBLE).withNullable(true),
               Schema.Field.of("is_final", FieldType.BOOLEAN).withNullable(true),
               Schema.Field.of("word_count", FieldType.INT32).withNullable(true))
+          .collect(toSchema());
+
+  public static final Schema webVttSchema =
+      Stream.of(
+              Schema.Field.of("time_offset", FieldType.STRING).withNullable(false),
+              Schema.Field.of("transcript", FieldType.STRING).withNullable(false))
+          .collect(toSchema());
+
+  static final Schema webVttMetadataSchema =
+      Stream.of(
+              Schema.Field.of("file_name", FieldType.STRING).withNullable(false),
+              Schema.Field.of("transcript_data", FieldType.array(FieldType.row(webVttSchema))))
           .collect(toSchema());
 
   public static List<String> splitWord(String transcript) {
@@ -64,12 +70,10 @@ public class Util {
             });
     return builder.toString();
   }
-  
-  public static String formatSecondField(long second) {
-	  LocalTime timeOfDay = LocalTime.ofSecondOfDay(second);
-	  String time = timeOfDay.toString();
-	  return time;
-	  
 
+  public static String formatSecondField(long second) {
+    LocalTime timeOfDay = LocalTime.ofSecondOfDay(second);
+    String time = timeOfDay.toString();
+    return time;
   }
 }
