@@ -1,5 +1,5 @@
 # Automatic WebVTT Caption From Streaming STT API By Using Dataflow
-This repo contains a reference implementation to capture caption in [WebVTT](https://en.wikipedia.org/wiki/WebVTT) format by processing <b>interium response</b> received from streaming STT(SpeechToText) API. The goal is to provide an easy to use automated solution to process audio clips  in real time by using GCS, PubSub and Dataflow. 
+This repo contains a reference implementation to capture caption in [WebVTT](https://en.wikipedia.org/wiki/WebVTT) format by processing <b>interim response</b> received from streaming STT(SpeechToText) API. The goal is to provide an easy to use automated solution to process audio clips  in real time by using GCS, PubSub and Dataflow. 
 
 ## Table of Contents  
 * [Context](#context).  
@@ -11,8 +11,8 @@ This repo contains a reference implementation to capture caption in [WebVTT](htt
 
 ## Context
 If you are looking to capture web VTT caption in real time, there are couple of challenges to overcome:
-- Latency has to be optimal which requires enabling interium result in STT  streaming API.
-- Construct start and end time offset based on the result_end_time field from the interium result returned.
+- Latency has to be optimal which requires enabling interims result in STT  streaming API.
+- Construct start and end time offset based on the result_end_time field from the interims result returned.
 - Determine when/how to emit the output.  This pattern uses 'number of words' and removes repeated words from the transcript. 
 
 ## How It works?
@@ -20,14 +20,14 @@ If you are looking to capture web VTT caption in real time, there are couple of 
 2. Pipeline calls the streaming STT api to process the clip.
 3. Pipeline receives the response and emit the result by taking following steps:
 	* Display the transcript that only meets a higher stability floor. It can be configured by using --stability parameter. By default it's set to 0.8.
-	* Count the numebr of words by splitting the transcript. 
+	* Count the number of words by splitting the transcript. 
 	* By using state variable, keep tracking lastEmitWordCount and startTime.
 	* Skipping the words already displayed from lastEmitWordCount and compare currentWordCount>=maxWordCount (configured by --wordCount parameter)
 	* Setup new start and end time from result_end_time value. Assume 00:00:00 is the start offset.
 4. Group by file name and construct webVTT format.
 5. Publish to a PubSub topic.
 ## Reference Architecture
-
+ ![ref_arch](diagram/stt_df_v1.png)
 ## Before Start
 1. Enable some Google Cloud APIs:
 
