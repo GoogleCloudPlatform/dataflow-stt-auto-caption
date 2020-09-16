@@ -27,7 +27,7 @@ If you are looking to capture web VTT caption in real time, there are couple of 
 4. Group by file name and construct webVTT format.
 5. Publish to a PubSub topic.
 ## Reference Architecture
- ![ref_arch](diagram/stt_df_v1.png)
+ ![ref_arch](diagrams/stt_df_v1.png)
 ## Before Start
 1. Enable some Google Cloud APIs:
 
