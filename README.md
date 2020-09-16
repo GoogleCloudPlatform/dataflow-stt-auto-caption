@@ -11,7 +11,7 @@ This repo contains a reference implementation to capture caption in [WebVTT](htt
 
 ## Context
 If you are looking to capture web VTT caption in real time, there are couple of challenges to overcome:
-- Latency has to be optimal which requires enabling interims result in STT  streaming API.
+- Latency has to be optimal which requires enabling interim result in STT  streaming API.
 - Construct start and end time offset based on the result_end_time field from the interims result returned.
 - Determine when/how to emit the output.  This pattern uses 'number of words' and removes repeated words from the transcript. 
 
