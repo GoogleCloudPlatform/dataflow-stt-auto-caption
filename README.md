@@ -1,5 +1,5 @@
 # Automatic WebVTT Caption From Streaming STT API By Using Dataflow
-This repo contains a reference implementations to capture caption in [WebVTT](https://en.wikipedia.org/wiki/WebVTT) format by processing <b>interium response</b> received from streaming STT(SpeechToText) API. The goal is to provide an easy to use automated solution to process audio clips  in real time by using GCS, PubSub and Dataflow. 
+This repo contains a reference implementation to capture caption in [WebVTT](https://en.wikipedia.org/wiki/WebVTT) format by processing <b>interium response</b> received from streaming STT(SpeechToText) API. The goal is to provide an easy to use automated solution to process audio clips  in real time by using GCS, PubSub and Dataflow. 
 
 ## Table of Contents  
 * [Context](#context).  
@@ -11,12 +11,12 @@ This repo contains a reference implementations to capture caption in [WebVTT](ht
 
 ## Context
 If you are looking to capture web VTT caption in real time, there are couple of challenges to overcome:
-- Latency has to be optimal which requires enabling interium result in STT API.
-- Construct start and end time offset based on the result_end_time field. 
-- Determine when to emit the result.  This pattern uses number of words and removes repeated words from the transcript. 
-This solution provides an automated pipeline to address these challenges. 
+- Latency has to be optimal which requires enabling interium result in STT  streaming API.
+- Construct start and end time offset based on the result_end_time field from the interium result returned.
+- Determine when/how to emit the output.  This pattern uses 'number of words' and removes repeated words from the transcript. 
+
 ## How It works?
-1. Pipeline receeives notification in a PubSub topic to process an audio clip. 
+1. Pipeline receives notification in a PubSub topic to process an audio clip. 
 2. Pipeline calls the streaming STT api to process the clip.
 3. Pipeline receives the response and emit the result by taking following steps:
 	* Display the transcript that only meets a higher stability floor. It can be configured by using --stability parameter. By default it's set to 0.8.
@@ -97,7 +97,7 @@ gs://dataflow-stt-audio-clips/wav_mono_kellogs.wav
 Output with word count =22
 
 ```
- 00:00-->00:00:11
+ 00:00:00-->00:00:11
 Now class mr. Tiger will show us how Kellogg sugar Frosted Flake cereal starts out. This are flake-free. It's a cornfield Kellogg's 
 00:00:11-->00:00:17
 toast corn the golden Flakes and adds a secret frosting helps keep an extra crunchy and delicious. It's part of your good breakfast 
@@ -108,7 +108,7 @@ and
 Output with word count =10
 
 ```
-00:00-->00:00:05
+00:00:00-->00:00:05
 Now class mr. Tiger will show us how Kellogg sugar Frosted 
 00:00:05-->00:00:09
 Flake cereal starts out. This are flake-free. It's a cornfield 
