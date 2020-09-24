@@ -4,6 +4,7 @@ This repo contains a reference implementation to capture caption in [WebVTT](htt
 ## Table of Contents  
 * [Context](#context).  
 * [How It Works](#how-it-works).   
+* [Quick Start](#quick-start).   
 * [Reference Architecture](#reference-architecture).
 * [Before Start](#build-run).  
 * [Build & Run ](#build-run). 
@@ -26,6 +27,18 @@ If you are looking to capture web VTT caption in real time, there are couple of 
 	* Setup new start and end time from result_end_time value. Assume 00:00:00 is the start offset.
 4. Group by file name and construct webVTT format.
 5. Publish to a PubSub topic.
+
+## Quick Start 
+You can trigger the pipeline by using gcloud command as below:
+
+```
+gcloud beta dataflow flex-template run "stt-auto-caption" --project=<project_id> \
+--region=<region> --template-file-gcs-location=gs://dataflow-stt-audio-clips/dynamic_template_stt_analytics.json \
+--parameters=^~^streaming=true~enableStreamingEngine=true~numWorkers=1~maxNumWorkers=2~runner=DataflowRunner~autoscalingAlgorithm=THROUGHPUT_BASED~workerMachineType=n1-standard-4~outputTopic=projects/next-demo-2020/topics/stt-clip-output~inputNotificationSubscription=projects/next-demo-2020/subscriptions/stt-clip-sub~wordCount=10
+```
+ ![df_dag_](diagrams/stt_dag.png)
+
+
 ## Reference Architecture
  ![ref_arch](diagrams/stt_df_v1.png)
 ## Before Start

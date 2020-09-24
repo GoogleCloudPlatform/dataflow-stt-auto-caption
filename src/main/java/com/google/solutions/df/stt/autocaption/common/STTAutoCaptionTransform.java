@@ -167,6 +167,7 @@ public abstract class STTAutoCaptionTransform
     @Setup
     public void setup() throws IOException {
       speechClient = SpeechClient.create();
+
       recConfig =
           RecognitionConfig.newBuilder()
               .setEncoding(AudioEncoding.LINEAR16)

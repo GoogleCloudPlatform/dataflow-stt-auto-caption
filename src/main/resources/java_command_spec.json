@@ -1,0 +1,4 @@
+{
+  "mainClass": "com.google.solutions.df.stt.autocaption.STTAutoCaptionPipeline",
+  "classPath": "/template/df-stt-analytics-template/libs/*:/template/df-stt-analytics-template/classes"
+}
